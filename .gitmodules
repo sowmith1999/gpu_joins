@@ -1,0 +1,3 @@
+[submodule "gdlog"]
+	path = gdlog
+	url = https://github.com/harp-lab/gdlog
