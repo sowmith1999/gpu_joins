@@ -3,10 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <unordered_map>
+#include <vector>
 
 void raiseError(const char *errorMessage) {
-    fprintf(stderr, "Error: %s\n", errorMessage); // Print the error message to stderr
-    exit(EXIT_FAILURE); // Exit the program with a failure status
+  fprintf(stderr, "Error: %s\n",
+          errorMessage); // Print the error message to stderr
+  exit(EXIT_FAILURE);    // Exit the program with a failure status
 }
 // hardcode the input for now
 typedef struct Index {
@@ -35,7 +37,7 @@ int *nextRow(Relation *rel, int row_idx) {
  * */
 int *getRow(Relation *rel, int row_idx) {
   // printf("In getRow, for relation %s and row_idx %d\n", rel->name, row_idx);
-  if(row_idx < rel->num_rows)
+  if (row_idx < rel->num_rows)
     return rel->index.sorted_array[row_idx];
   raiseError("In getRow, row_idx greater than num_row");
   return nullptr;
@@ -131,34 +133,41 @@ void deleteRelation(Relation *rel) {
  * outer relation, I don't think so, right, coz column that we are matching on
  * is indexed in both tables, or doesn't matter which one is which...
  */
-void joinRelation(Relation *rel1, Relation *rel2) {
+std::vector<std::vector<int>> *joinRelation(Relation *path, Relation *edge) {
+  // make a new relation to store the tuples from the join
+  // Relation *join_rel = new Relation();
   // rel1 hash loop
-  for (auto &pair : rel1->index.map) {
+  auto join_ret = new std::vector<std::vector<int>>;
+  for (auto &pair : path->index.map) {
     int key = pair.first; // this would be a hash, and the value is index in the
                           // sorted array
     // pointer to the first row with this key on sorted array
-    printf("The key is : %d\n", key);
-    printf("The rel one values for key:\n");
-    int row_idx = rel1->index.map[key];
-    int *row = getRow(rel1, row_idx);
-    while (row[rel1->index_col] == key) {
-      printRow(rel1, row);
-      printf("\n");
+    // printf("The key is : %d\n", key);
+    // printf("The rel one values for key:\n");
+    int row_idx = path->index.map[key];
+    int *row = getRow(path, row_idx);
+    while (row[path->index_col] == key) {
+      // printRow(path, row);
+      // printf("\n");
+      int inner_row_idx = edge->index.map[key];
+      int *inner_row = getRow(edge, inner_row_idx);
+      while (inner_row[edge->index_col] == key) {
+        printf("X: %d Y: %d\n", row[0], inner_row[1]);
+        join_ret->push_back({row[0], inner_row[1]});
+        inner_row_idx++;
+        if (inner_row_idx >= edge->num_rows)
+          break;
+        inner_row = getRow(edge, inner_row_idx);
+      }
       row_idx++;
-      if(row_idx >= rel1->num_rows) break;
-      row = getRow(rel1, row_idx);
-    }
-    printf("The rel two values for key:\n");
-    row_idx = rel2->index.map[key];
-    row = getRow(rel2, row_idx);
-    while (row[rel2->index_col] == key) {
-      printRow(rel2, row);
-      printf("\n");
-      row_idx++;
-      if(row_idx >= rel2->num_rows) break;
-      row = getRow(rel2, row_idx);
+      if (row_idx >= path->num_rows)
+        break;
+      row = getRow(path, row_idx);
     }
   }
+  for(auto& items: *join_ret)
+      std::cout << items[0] << " " << items[1] << std::endl;
+  return join_ret;
 }
 
 Relation *make_rel(int *init_values, char *name, int num_cols, int num_rows,
