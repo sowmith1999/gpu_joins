@@ -1,0 +1,35 @@
+    Partitioning: Divide the join keys space into smaller segments that can be independently processed in parallel. This is critical for managing the GPU's memory limitations and maximizing parallel execution.
+
+    Mapping Join Keys: Use the hash map of the HISA structure to quickly locate potential matching tuples in each relation for a given segment of the join key space. This step can leverage the existing index_map but needs to be adapted for parallel lookups across multiple relations.
+
+    Combination and Filtering: For each partition of the join key space, create combinations of tuples from all relations that share the same join keys, and then filter out those combinations that do not meet the k-ary join condition(s).
+
+    Producing Results: Concatenate the results from all segments into a final result set.
+
+    Determine Partition Strategy: Decide how to partition the key space. One simple approach could be based on ranges or hash values of the join key. Each CUDA thread (or block) would then be responsible for a specific partition.
+
+    Prepare Data Structures: Ensure that all (k) relations are loaded into GHashRelContainer structures, with index_map properly initialized.
+
+    Partition-wise Lookup:
+
+    a. For each partition, use parallel CUDA threads to look up keys within the partition in the index_map of each relation.
+
+    b. Create a list (or array) of matching tuple ids for each relation within the partition.
+
+    Generate Tuple Combinations and Filter:
+
+    a. Within each thread (or block), iterate over the lists of tuple ids generated in the previous step to form all possible tuple combinations where the join key is equal.
+
+    b. Keep only those combinations that fulfill any additional join condition(s), if present.
+
+    Collect and Concatenate Results: Each thread (or block) writes its output to a segment of the global memory. Upon completion, a final kernel or CPU-based step may be necessary to concatenate these segments into a complete result set.
+
+Optimization and Considerations:
+
+    Memory Efficiency: Be mindful of memory usage, especially when generating tuple combinations. It may be necessary to use shared memory within blocks for intermediate results, with careful management to avoid overflows.
+
+    Load Balancing: The distribution of join keys may result in an uneven workload across threads or blocks. Techniques like dynamic partitioning or work-stealing may help alleviate this.
+
+    Reduction of Intermediate Combinations: Apply filters as early as possible to reduce the number of intermediate tuple combinations that need to be considered.
+
+    GPU Utilization: Profile the execution to ensure that the GPU's resources are fully utilized, adjusting the partitioning and block sizes as necessary.
