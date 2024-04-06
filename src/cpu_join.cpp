@@ -1,128 +1,126 @@
-#include <cstdlib>
-#include <iostream>
 #include <stdio.h>
 #include <string.h>
+
+#include <cstdlib>
+#include <iostream>
 #include <unordered_map>
 #include <vector>
 
 void raiseError(const char *errorMessage) {
-  fprintf(stderr, "Error: %s\n",
-          errorMessage); // Print the error message to stderr
-  exit(EXIT_FAILURE);    // Exit the program with a failure status
+    fprintf(stderr, "Error: %s\n",
+            errorMessage);  // Print the error message to stderr
+    exit(EXIT_FAILURE);     // Exit the program with a failure status
 }
 // hardcode the input for now
 typedef struct Index {
-  int **sorted_array;
-  std::unordered_map<int, int> map;
+    int **sorted_array;
+    std::unordered_map<int, int> map;
 } Index;
 
 typedef struct Relation {
-  char *name;
-  int num_rows;
-  int num_cols;
-  int index_col;
-  Index index;
-  int **rows; // data_array
+    char *name;
+    int num_rows;
+    int num_cols;
+    int index_col;
+    Index index;
+    int **rows;  // data_array
 } Relation;
 /*
  * Takes a relation, and row number in sorted array,
  * give the pointer to next row as per sorted array
  * */
 int *nextRow(Relation *rel, int row_idx) {
-  return rel->index.sorted_array[row_idx + 1];
+    return rel->index.sorted_array[row_idx + 1];
 }
 
 /*
  * Takes a Relation and sorted_array row number and return the pointer to row
  * */
 int *getRow(Relation *rel, int row_idx) {
-  // printf("In getRow, for relation %s and row_idx %d\n", rel->name, row_idx);
-  if (row_idx < rel->num_rows)
-    return rel->index.sorted_array[row_idx];
-  raiseError("In getRow, row_idx greater than num_row");
-  return nullptr;
+    // printf("In getRow, for relation %s and row_idx %d\n", rel->name,
+    // row_idx);
+    if (row_idx < rel->num_rows) return rel->index.sorted_array[row_idx];
+    raiseError("In getRow, row_idx greater than num_row");
+    return nullptr;
 }
 
 void printRow(Relation *rel, int *row) {
-  for (int i = 0; i < rel->num_cols; i++)
-    printf("%d\t", row[i]);
+    for (int i = 0; i < rel->num_cols; i++) printf("%d\t", row[i]);
 }
 
 void initializeIndex(Relation &rel) {
-  // do indexing
-  // take data_array and do radix sort, and store the pointers to the rows in
-  // that order for now, we can directly use the data_array as it is already
-  // sorted
-  Index &index = rel.index;
-  index.sorted_array = (int **)malloc(rel.num_rows * (sizeof(int *)));
-  for (int i = 0; i < rel.num_rows; i++) {
-    index.sorted_array[i] =
-        rel.rows[i]; // storing the pointer to the row in data array
-  }
-
-  int prev_hash = -1;
-  for (int i = 0; i < rel.num_rows; i++) {
-    // hash the index_cols and use that as key
-    // hash all the index cols together, if there is more than and use that hash
-    // for now directly using the values of the index_column
-    int cur_hash = index.sorted_array[i][rel.index_col];
-    if (cur_hash != prev_hash) { // skipping over rows whose index is already in
-                                 // hash table, as we iter through sorted array
-                                 // only need to check against previous hash
-      index.map[cur_hash] = i;   // storing the first occurrence of new hash as
-                                 // the index value in sorted array
-      prev_hash = cur_hash;
+    // do indexing
+    // take data_array and do radix sort, and store the pointers to the rows in
+    // that order for now, we can directly use the data_array as it is already
+    // sorted
+    Index &index = rel.index;
+    index.sorted_array = (int **)malloc(rel.num_rows * (sizeof(int *)));
+    for (int i = 0; i < rel.num_rows; i++) {
+        index.sorted_array[i] =
+            rel.rows[i];  // storing the pointer to the row in data array
     }
-  }
+
+    int prev_hash = -1;
+    for (int i = 0; i < rel.num_rows; i++) {
+        // hash the index_cols and use that as key
+        // hash all the index cols together, if there is more than and use that
+        // hash for now directly using the values of the index_column
+        int cur_hash = index.sorted_array[i][rel.index_col];
+        if (cur_hash !=
+            prev_hash) {  // skipping over rows whose index is already in
+                          // hash table, as we iter through sorted array
+                          // only need to check against previous hash
+            index.map[cur_hash] = i;  // storing the first occurrence of new
+                                      // hash as the index value in sorted array
+            prev_hash = cur_hash;
+        }
+    }
 }
 
 void initializeRelation(Relation &rel, char *name, int num_cols, int num_rows,
                         int index_col, int *data) {
-  rel.name = (char *)malloc(strlen(name) + 1);
-  strcpy(rel.name, name);
-  rel.num_cols = num_cols;
-  rel.num_rows = num_rows;
-  rel.index_col = index_col;
+    rel.name = (char *)malloc(strlen(name) + 1);
+    strcpy(rel.name, name);
+    rel.num_cols = num_cols;
+    rel.num_rows = num_rows;
+    rel.index_col = index_col;
 
-  rel.rows = (int **)malloc(rel.num_rows * sizeof(int *));
-  for (int i = 0; i < rel.num_rows; i++) {
-    rel.rows[i] = (int *)malloc(rel.num_cols * sizeof(int));
-    for (int j = 0; j < rel.num_cols; j++) {
-      rel.rows[i][j] = data[i * rel.num_cols + j];
+    rel.rows = (int **)malloc(rel.num_rows * sizeof(int *));
+    for (int i = 0; i < rel.num_rows; i++) {
+        rel.rows[i] = (int *)malloc(rel.num_cols * sizeof(int));
+        for (int j = 0; j < rel.num_cols; j++) {
+            rel.rows[i][j] = data[i * rel.num_cols + j];
+        }
     }
-  }
-  initializeIndex(rel);
+    initializeIndex(rel);
 }
 
 void printIndex(Relation &rel) {
-  printf("Keys indexed are\n");
-  for (auto &pair : rel.index.map)
-    std::cout << pair.first << std::endl;
+    printf("Keys indexed are\n");
+    for (auto &pair : rel.index.map) std::cout << pair.first << std::endl;
 }
 
 void printRelation(Relation &rel, bool print_data, bool print_index) {
-  printf("The relation name is: %s\n", rel.name);
-  printf("Number of columns: %d\n", rel.num_cols);
-  printf("Number of rows: %d\n", rel.num_rows);
-  printf("The index col is: %d\n", rel.index_col);
-  if (print_data) {
-    for (int i = 0; i < rel.num_rows; i++) {
-      for (int j = 0; j < rel.num_cols; j++)
-        printf("%d \t", rel.rows[i][j]);
-      printf("\n");
+    printf("The relation name is: %s\n", rel.name);
+    printf("Number of columns: %d\n", rel.num_cols);
+    printf("Number of rows: %d\n", rel.num_rows);
+    printf("The index col is: %d\n", rel.index_col);
+    if (print_data) {
+        for (int i = 0; i < rel.num_rows; i++) {
+            for (int j = 0; j < rel.num_cols; j++)
+                printf("%d \t", rel.rows[i][j]);
+            printf("\n");
+        }
     }
-  }
-  if (print_index)
-    printIndex(rel);
+    if (print_index) printIndex(rel);
 }
 
 void deleteRelation(Relation *rel) {
-  free(rel->name);
-  for (int i = 0; i < rel->num_rows; i++)
-    free(rel->rows[i]);
-  free(rel->rows);
-  free(rel->index.sorted_array);
-  delete rel;
+    free(rel->name);
+    for (int i = 0; i < rel->num_rows; i++) free(rel->rows[i]);
+    free(rel->rows);
+    free(rel->index.sorted_array);
+    delete rel;
 }
 
 /*
@@ -134,74 +132,71 @@ void deleteRelation(Relation *rel) {
  * is indexed in both tables, or doesn't matter which one is which...
  */
 std::vector<std::vector<int>> *joinRelation(Relation *path, Relation *edge) {
-  // make a new relation to store the tuples from the join
-  // Relation *join_rel = new Relation();
-  // rel1 hash loop
-  auto join_ret = new std::vector<std::vector<int>>;
-  for (auto &pair : path->index.map) {
-    int key = pair.first; // this would be a hash, and the value is index in the
-                          // sorted array
-    // pointer to the first row with this key on sorted array
-    // printf("The key is : %d\n", key);
-    // printf("The rel one values for key:\n");
-    int row_idx = path->index.map[key];
-    int *row = getRow(path, row_idx);
-    while (row[path->index_col] == key) {
-      // printRow(path, row);
-      // printf("\n");
-      int inner_row_idx = edge->index.map[key];
-      int *inner_row = getRow(edge, inner_row_idx);
-      while (inner_row[edge->index_col] == key) {
-        printf("X: %d Y: %d\n", row[0], inner_row[1]);
-        join_ret->push_back({row[0], inner_row[1]});
-        inner_row_idx++;
-        if (inner_row_idx >= edge->num_rows)
-          break;
-        inner_row = getRow(edge, inner_row_idx);
-      }
-      row_idx++;
-      if (row_idx >= path->num_rows)
-        break;
-      row = getRow(path, row_idx);
+    // make a new relation to store the tuples from the join
+    // Relation *join_rel = new Relation();
+    // rel1 hash loop
+    auto join_ret = new std::vector<std::vector<int>>;
+    for (auto &pair : path->index.map) {
+        int key = pair.first;  // this would be a hash, and the value is index
+                               // in the sorted array
+        // pointer to the first row with this key on sorted array
+        // printf("The key is : %d\n", key);
+        // printf("The rel one values for key:\n");
+        int row_idx = path->index.map[key];
+        int *row = getRow(path, row_idx);
+        while (row[path->index_col] == key) {
+            // printRow(path, row);
+            // printf("\n");
+            int inner_row_idx = edge->index.map[key];
+            int *inner_row = getRow(edge, inner_row_idx);
+            while (inner_row[edge->index_col] == key) {
+                printf("X: %d Y: %d\n", row[0], inner_row[1]);
+                join_ret->push_back({row[0], inner_row[1]});
+                inner_row_idx++;
+                if (inner_row_idx >= edge->num_rows) break;
+                inner_row = getRow(edge, inner_row_idx);
+            }
+            row_idx++;
+            if (row_idx >= path->num_rows) break;
+            row = getRow(path, row_idx);
+        }
     }
-  }
-  for(auto& items: *join_ret)
-      std::cout << items[0] << " " << items[1] << std::endl;
-  return join_ret;
+    for (auto &items : *join_ret)
+        std::cout << items[0] << " " << items[1] << std::endl;
+    return join_ret;
 }
 
 Relation *make_rel(int *init_values, char *name, int num_cols, int num_rows,
                    int index_col) {
-  Relation *rel = new Relation();
-  int *data = (int *)calloc(num_rows * num_cols, sizeof(int));
-  for (int i = 0; i < num_rows * num_cols; i++)
-    data[i] = init_values[i];
-  initializeRelation(*rel, name, num_cols, num_rows, index_col, data);
-  free(data);
-  return rel;
+    Relation *rel = new Relation();
+    int *data = (int *)calloc(num_rows * num_cols, sizeof(int));
+    for (int i = 0; i < num_rows * num_cols; i++) data[i] = init_values[i];
+    initializeRelation(*rel, name, num_cols, num_rows, index_col, data);
+    free(data);
+    return rel;
 }
 
 int main() {
-  int num_cols = 2;
-  int num_rows = 6;
-  // int edge_index= 0;
-  // int index_col2 = 1;
-  // relation 1
-  char rel1_name[] = "path";
-  int init_values_1[] = {1, 2, 2, 3, 2, 4, 3, 5, 4, 5, 5, 6};
-  Relation *path = make_rel(init_values_1, rel1_name, num_cols, num_rows, 1);
-  printRelation(*path, 1, 1);
+    int num_cols = 2;
+    int num_rows = 6;
+    // int edge_index= 0;
+    // int index_col2 = 1;
+    // relation 1
+    char rel1_name[] = "path";
+    int init_values_1[] = {1, 2, 2, 3, 2, 4, 3, 5, 4, 5, 5, 6};
+    Relation *path = make_rel(init_values_1, rel1_name, num_cols, num_rows, 1);
+    printRelation(*path, 1, 1);
 
-  // relation 2
-  char rel2_name[] = "edge";
-  int init_values_2[] = {1, 2, 2, 3, 2, 4, 3, 5, 4, 5, 5, 6};
-  Relation *edge = make_rel(init_values_2, rel2_name, num_cols, num_rows, 0);
-  printRelation(*edge, 1, 1);
+    // relation 2
+    char rel2_name[] = "edge";
+    int init_values_2[] = {1, 2, 2, 3, 2, 4, 3, 5, 4, 5, 5, 6};
+    Relation *edge = make_rel(init_values_2, rel2_name, num_cols, num_rows, 0);
+    printRelation(*edge, 1, 1);
 
-  //    printf("The index val 3 points to: %d\n",
-  //    (*rel1).index.sorted_array[(*rel1).index.map[6]][2]);
-  joinRelation(path, edge);
-  deleteRelation(path);
-  deleteRelation(edge);
-  return 0;
+    //    printf("The index val 3 points to: %d\n",
+    //    (*rel1).index.sorted_array[(*rel1).index.map[6]][2]);
+    joinRelation(path, edge);
+    deleteRelation(path);
+    deleteRelation(edge);
+    return 0;
 }
