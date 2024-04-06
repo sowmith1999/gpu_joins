@@ -140,8 +140,8 @@ std::vector<std::vector<int>> *joinRelation(Relation *path, Relation *edge) {
         int key = pair.first;  // this would be a hash, and the value is index
                                // in the sorted array
         // pointer to the first row with this key on sorted array
-        // printf("The key is : %d\n", key);
-        // printf("The rel one values for key:\n");
+        printf("The key is : %d\n", key);
+        printf("The rel one values for key:\n");
         int row_idx = path->index.map[key];
         int *row = getRow(path, row_idx);
         while (row[path->index_col] == key) {

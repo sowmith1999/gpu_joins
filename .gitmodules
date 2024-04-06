@@ -1,3 +1,6 @@
 [submodule "gdlog"]
 	path = gdlog
 	url = https://github.com/harp-lab/gdlog
+[submodule "k-ary-joins"]
+	path = k-ary-joins
+	url = https://github.com/Michaelgathara/k-ary-joins
