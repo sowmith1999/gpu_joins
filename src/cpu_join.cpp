@@ -11,7 +11,7 @@ void raiseError(const char* errorMessage) {
           errorMessage); // Print the error message to stderr
   exit(EXIT_FAILURE);    // Exit the program with a failure status
 }
-// hardcode the input for now
+
 typedef struct Index {
   // Stores the starting offset of rows, sorted stably from
   // least significant to most significant column
@@ -160,7 +160,21 @@ std::vector<int>* joinRelation(Relation* path, Relation* edge) {
 }
 
 // Takes the path and path_new created from the join operation
-void mergeRelation(Relation* path, Relation* path_new) {}
+// and merges them, I think there is another step of deduplication or
+// creation of delta before this
+void mergeRelation(Relation* path, Relation* path_new) {
+// I basically loop through the path_new as outer and path as inner
+// use the index, and look for same tuples, and insert the ones from delta
+// that don't math into another vector;
+// Now build a new relation with that vector and make index
+// and then append the delta and full vectors together, merge the sorted arrays.
+// merge the hash maps
+// One thing we don't want is a new relation, we want to actually merge
+  for(auto& pair : path_new->index.map){
+    int key = pair.first;
+  }
+}
+
 Relation* make_rel(const std::vector<int>& graph, char* name, int num_cols,
                    int num_rows, int index_col, bool do_index) {
   Relation* rel = new Relation();
