@@ -202,6 +202,7 @@ int main() {
   char join_name[] = "path_new";
   Relation* join_temp = make_rel(*join_ret, join_name, num_cols,
                                  join_ret->size() / num_cols, 0, 1);
+
   printRelation(*join_temp, 1, 1);
   delete join_ret;
   deleteRelation(path);
