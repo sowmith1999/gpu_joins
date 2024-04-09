@@ -1,5 +1,5 @@
-#include "graph_utilities.cuh"
-#include "gpu_join_kernels.cuh"
+// Authors: Michael G & Sowmith K
+#include "kernels.cuh"
 #include <iostream>
 #include <vector>
 
