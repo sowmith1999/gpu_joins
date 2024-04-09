@@ -1,0 +1,13 @@
+.decl graph1(x:number, y:number)
+.input graph1 
+
+.decl graph2(x:number, y:number)
+.input graph2
+
+.decl graph3(x:number, y:number)
+.input graph3
+
+.decl intsc(x:number, y:number)
+.output intsc 
+
+intsc(x, y) :- graph1(x, y), graph2(x,y), graph3(x,y).
