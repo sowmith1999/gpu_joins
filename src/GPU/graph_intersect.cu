@@ -37,13 +37,27 @@ int main() {
     intersectGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputBuffer, numEdges);
     cudaDeviceSynchronize();
 
-    std::vector<int> intersectionResults(numEdges);
-    cudaMemcpy(intersectionResults.data(), outputBuffer, numEdges * sizeof(int), cudaMemcpyDeviceToHost);
+    Graph* outputGraphOnGPU;
+    cudaMallocManaged(&outputGraphOnGPU, numEdges * sizeof(Graph));
 
-    std::cout << "Intersection Results:" << std::endl;
+    mergeGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputGraphOnGPU);
+    cudaDeviceSynchronize();
+
+    // print output graph
     for (int i = 0; i < numEdges; ++i) {
-        std::cout << intersectionResults[i] << (i < numEdges - 1 ? ", " : "\n");
+        std::cout << "Edge " << i << ": ";
+        for (int j = 0; j < outputGraphOnGPU[i].numNodes; ++j) {
+            std::cout << outputGraphOnGPU[i].srcNodes[j] << " -> " << outputGraphOnGPU[i].destNodes[j] << (j < outputGraphOnGPU[i].numNodes - 1 ? ", " : "\n");
+        }
     }
+
+    // std::vector<int> intersectionResults(numEdges);
+    // cudaMemcpy(intersectionResults.data(), outputBuffer, numEdges * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // std::cout << "Intersection Results:" << std::endl;
+    // for (int i = 0; i < numEdges; ++i) {
+    //     std::cout << intersectionResults[i] << (i < numEdges - 1 ? ", " : "\n");
+    // }
 
     // Cleanup
     for (int i = 0; i < 3; ++i) {

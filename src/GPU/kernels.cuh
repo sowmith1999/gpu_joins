@@ -91,3 +91,4 @@ __global__ void mergeGraphsKernel(Graph* graphs, int numGraphs, Graph* outputGra
         outputGraph->destNodes[idx] = graphs[0].destNodes[idx];
     }
 }
+
