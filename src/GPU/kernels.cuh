@@ -56,7 +56,7 @@ struct Row {
 //     }
 // }
 
-__global__ void intersectGraphsKernel(Graph* graphs, int numGraphs, int* outputBuffer, int numEdges) {
+__global__ void intersectGraphsKernel(Graph* graphs, int numGraphs, int* outputBuffer, int numEdges, int* intersectionCount) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx >= numEdges) {
@@ -69,7 +69,11 @@ __global__ void intersectGraphsKernel(Graph* graphs, int numGraphs, int* outputB
                        (graphs[0].destNodes[idx] == graphs[i].destNodes[idx]);
     }
 
-    outputBuffer[idx] = intersects ? 1 : 0;
+    if (intersects) {
+        outputBuffer[idx] = intersects ? 1 : 0;
+        atomicAdd(intersectionCount, 1);
+    }
+
 }
 
 __global__ void mergeGraphsKernel(Graph* graphs, int numGraphs, Graph* outputGraph) {
@@ -81,13 +85,18 @@ __global__ void mergeGraphsKernel(Graph* graphs, int numGraphs, Graph* outputGra
 
     bool intersects = true;
     for (int i = 1; i < numGraphs && intersects; i++) {
-        intersects &= (graphs[0].srcNodes[idx] == graphs[i].srcNodes[idx]) && 
-                       (graphs[0].destNodes[idx] == graphs[i].destNodes[idx]);
+        intersects &= (graphs[0].srcNodes[idx] == graphs[i].srcNodes[idx]) &&
+                      (graphs[0].destNodes[idx] == graphs[i].destNodes[idx]);
     }
 
     if (intersects) {
         outputGraph->srcNodes[idx] = graphs[0].srcNodes[idx];
         outputGraph->destNodes[idx] = graphs[0].destNodes[idx];
+    } else {
+        outputGraph->srcNodes[idx] = -1;
+        outputGraph->destNodes[idx] = -1;
     }
 }
+
+
 

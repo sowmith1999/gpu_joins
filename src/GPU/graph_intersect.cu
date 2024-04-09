@@ -31,28 +31,46 @@ int main() {
     int* outputBuffer;
     cudaMalloc(&outputBuffer, numEdges * sizeof(int));
 
-    int blockSize = 256; 
+    int blockSize = 1;
     int numBlocks = (numEdges + blockSize - 1) / blockSize;
 
-    intersectGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputBuffer, numEdges);
+    int* intersectionCount;
+    cudaMalloc(&intersectionCount, sizeof(int));
+    cudaMemset(intersectionCount, 0, sizeof(int));
+
+    intersectGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputBuffer, numEdges, intersectionCount);
     cudaDeviceSynchronize();
 
-    Graph* outputGraphOnGPU;
-    cudaMallocManaged(&outputGraphOnGPU, numEdges * sizeof(Graph));
+    int h_intersectionCount;
+    cudaMemcpy(&h_intersectionCount, intersectionCount, sizeof(int), cudaMemcpyDeviceToHost);
 
-    mergeGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputGraphOnGPU);
+    std::cout << "Total Intersections: " << h_intersectionCount << std::endl;
+    std::vector<int> intersectionResults(numEdges);
+    cudaMemcpy(intersectionResults.data(), outputBuffer, numEdges * sizeof(int), cudaMemcpyDeviceToHost);
+
+    // Merging area
+    Graph* outputGraph;
+    cudaMallocManaged(&outputGraph, sizeof(Graph));
+    cudaMallocManaged(&outputGraph->srcNodes, h_intersectionCount * sizeof(int));
+    cudaMallocManaged(&outputGraph->destNodes, h_intersectionCount * sizeof(int));
+    outputGraph->numEdges = h_intersectionCount;
+
+    numBlocks = (outputGraph->numEdges + blockSize - 1) / blockSize;
+
+    mergeGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputGraph);
     cudaDeviceSynchronize();
 
-    // print output graph
-    for (int i = 0; i < numEdges; ++i) {
-        std::cout << "Edge " << i << ": ";
-        for (int j = 0; j < outputGraphOnGPU[i].numEdges; ++j) {
-            std::cout << outputGraphOnGPU[i].srcNodes[j] << " -> " << outputGraphOnGPU[i].destNodes[j] << (j < outputGraphOnGPU[i].numEdges - 1 ? ", " : "\n");
+    std::cout << "Output Graph: " << std::endl;
+    for (int i = 0; i < outputGraph->numEdges; ++i) {
+        // Ensure you are checking against a valid sentinel value or ensure edges are initialized correctly
+        if (outputGraph->srcNodes[i] != -1 && outputGraph->destNodes[i] != -1) {
+            std::cout << "(" << outputGraph->srcNodes[i] << ", " << outputGraph->destNodes[i] << ")" << std::endl;
         }
     }
 
-    // std::vector<int> intersectionResults(numEdges);
-    // cudaMemcpy(intersectionResults.data(), outputBuffer, numEdges * sizeof(int), cudaMemcpyDeviceToHost);
+//    int intersectionCount = /* result from counting intersections */;
+//    cudaMallocManaged(&outputGraph->srcNodes, intersectionCount * sizeof(int));
+//    cudaMallocManaged(&outputGraph->destNodes, intersectionCount * sizeof(int));
 
     // std::cout << "Intersection Results:" << std::endl;
     // for (int i = 0; i < numEdges; ++i) {
@@ -60,12 +78,14 @@ int main() {
     // }
 
     // Cleanup
-    for (int i = 0; i < 3; ++i) {
-        cudaFree(graphsOnGPU[i].srcNodes);
-        cudaFree(graphsOnGPU[i].destNodes);
-    }
+    cudaFree(graphsOnGPU->srcNodes);
+    cudaFree(graphsOnGPU->destNodes);
+    cudaFree(outputGraph->srcNodes);
+    cudaFree(outputGraph->destNodes);
+    cudaFree(outputGraph);
     cudaFree(graphsOnGPU);
     cudaFree(outputBuffer);
+    cudaFree(intersectionCount);
 
     return 0;
 }
