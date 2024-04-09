@@ -46,8 +46,8 @@ int main() {
     // print output graph
     for (int i = 0; i < numEdges; ++i) {
         std::cout << "Edge " << i << ": ";
-        for (int j = 0; j < outputGraphOnGPU[i].numNodes; ++j) {
-            std::cout << outputGraphOnGPU[i].srcNodes[j] << " -> " << outputGraphOnGPU[i].destNodes[j] << (j < outputGraphOnGPU[i].numNodes - 1 ? ", " : "\n");
+        for (int j = 0; j < outputGraphOnGPU[i].numEdges; ++j) {
+            std::cout << outputGraphOnGPU[i].srcNodes[j] << " -> " << outputGraphOnGPU[i].destNodes[j] << (j < outputGraphOnGPU[i].numEdges - 1 ? ", " : "\n");
         }
     }
 
