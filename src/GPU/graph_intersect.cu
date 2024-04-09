@@ -2,6 +2,7 @@
 #include "kernels.cuh"
 #include <iostream>
 #include <vector>
+#include <chrono>
 
 int main() {
     // These are graphs where we have source nodes and dest nodes. So source(1) and dest(2) = edge(1, 2)
@@ -38,6 +39,8 @@ int main() {
     cudaMalloc(&intersectionCount, sizeof(int));
     cudaMemset(intersectionCount, 0, sizeof(int));
 
+    auto startTimer = std::chrono::steady_clock::now();
+
     intersectGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputBuffer, numEdges, intersectionCount);
     cudaDeviceSynchronize();
 
@@ -60,6 +63,8 @@ int main() {
     mergeGraphsKernel<<<numBlocks, blockSize>>>(graphsOnGPU, 3, outputGraph);
     cudaDeviceSynchronize();
 
+    auto endTimer = std::chrono::steady_clock::now();
+
     std::cout << "Output Graph: " << std::endl;
     for (int i = 0; i < outputGraph->numEdges; ++i) {
         // Ensure you are checking against a valid sentinel value or ensure edges are initialized correctly
@@ -68,14 +73,7 @@ int main() {
         }
     }
 
-//    int intersectionCount = /* result from counting intersections */;
-//    cudaMallocManaged(&outputGraph->srcNodes, intersectionCount * sizeof(int));
-//    cudaMallocManaged(&outputGraph->destNodes, intersectionCount * sizeof(int));
-
-    // std::cout << "Intersection Results:" << std::endl;
-    // for (int i = 0; i < numEdges; ++i) {
-    //     std::cout << intersectionResults[i] << (i < numEdges - 1 ? ", " : "\n");
-    // }
+    std::cout << "Time (nanoseconds): " << std::chrono::duration<double, std::nano>(endTimer - startTimer).count() << " ns" << std::endl;
 
     // Cleanup
     cudaFree(graphsOnGPU->srcNodes);

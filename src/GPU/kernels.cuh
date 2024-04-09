@@ -60,12 +60,12 @@ __global__ void intersectGraphsKernel(Graph* graphs, int numGraphs, int* outputB
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (idx >= numEdges) {
-      return; 
+      return;
     }
 
     bool intersects = true;
     for (int i = 1; i < numGraphs && intersects; i++) {
-        intersects &= (graphs[0].srcNodes[idx] == graphs[i].srcNodes[idx]) && 
+        intersects &= (graphs[0].srcNodes[idx] == graphs[i].srcNodes[idx]) &&
                        (graphs[0].destNodes[idx] == graphs[i].destNodes[idx]);
     }
 
@@ -97,6 +97,26 @@ __global__ void mergeGraphsKernel(Graph* graphs, int numGraphs, Graph* outputGra
         outputGraph->destNodes[idx] = -1;
     }
 }
+
+// trying both at once
+__global__ void intersectAndMergeGraphsKernel(Graph* graphs, int numGraphs, Graph* outputGraph, int numEdges, int* globalCounter) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx >= numEdges) return;
+
+    bool intersects = true;
+    for (int i = 1; i < numGraphs && intersects; i++) {
+        intersects &= (graphs[0].srcNodes[idx] == graphs[i].srcNodes[idx]) &&
+                      (graphs[0].destNodes[idx] == graphs[i].destNodes[idx]);
+    }
+
+    if (intersects) {
+        int writeIdx = atomicAdd(globalCounter, 1);
+        outputGraph->srcNodes[writeIdx] = graphs[0].srcNodes[idx];
+        outputGraph->destNodes[writeIdx] = graphs[0].destNodes[idx];
+    }
+}
+
 
 
 
