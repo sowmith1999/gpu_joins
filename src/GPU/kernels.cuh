@@ -72,3 +72,22 @@ __global__ void intersectGraphsKernel(Graph* graphs, int numGraphs, int* outputB
 
     outputBuffer[idx] = intersects ? 1 : 0;
 }
+
+__global__ void mergeGraphsKernel(Graph* graphs, int numGraphs, Graph* outputGraph) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (idx >= graphs[0].numEdges) {
+        return;
+    }
+
+    bool intersects = true;
+    for (int i = 1; i < numGraphs && intersects; i++) {
+        intersects &= (graphs[0].srcNodes[idx] == graphs[i].srcNodes[idx]) && 
+                       (graphs[0].destNodes[idx] == graphs[i].destNodes[idx]);
+    }
+
+    if (intersects) {
+        outputGraph->srcNodes[idx] = graphs[0].srcNodes[idx];
+        outputGraph->destNodes[idx] = graphs[0].destNodes[idx];
+    }
+}
