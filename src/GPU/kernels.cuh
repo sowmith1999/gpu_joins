@@ -110,10 +110,13 @@ __global__ void intersectAndMergeGraphsKernel(Graph* graphs, int numGraphs, Grap
                       (graphs[0].destNodes[idx] == graphs[i].destNodes[idx]);
     }
 
+    int writeIdx = atomicAdd(globalCounter, 1);
     if (intersects) {
-        int writeIdx = atomicAdd(globalCounter, 1);
         outputGraph->srcNodes[writeIdx] = graphs[0].srcNodes[idx];
         outputGraph->destNodes[writeIdx] = graphs[0].destNodes[idx];
+    } else {
+        outputGraph->srcNodes[writeIdx] = -1;
+        outputGraph->destNodes[writeIdx] = -1;
     }
 }
 
