@@ -1,23 +1,24 @@
 // Authors: Michael G & Sowmith K
-#include "kernels.cuh"
 #include <iostream>
-#include <vector>
 #include <chrono>
+// #include <vector> // should come from graph.cuh
+#include "kernels.cuh"
+#include "graph.cuh"
 
 int main() {
     // These are graphs where we have source nodes and dest nodes. So source(1) and dest(2) = edge(1, 2)
     // in this current setup, there is edge(1, 2) in the first index. 
-    std::vector<std::vector<int>> srcNodesVec = {
-        {1, 2, 4}, 
-        {1, 11, 2}, 
-        {1, 10, 3}  
-    };
+    // std::vector<std::vector<int>> srcNodesVec = {
+    //     {1, 2, 4}, 
+    //     {1, 11, 2}, 
+    //     {1, 10, 3}  
+    // };
 
-    std::vector<std::vector<int>> destNodesVec = {
-        {2, 3, 2}, 
-        {2, 3, 2}, 
-        {2, 3, 4}  
-    };
+    // std::vector<std::vector<int>> destNodesVec = {
+    //     {2, 3, 2}, 
+    //     {2, 3, 2}, 
+    //     {2, 3, 4}  
+    // };
 
     int numEdges = srcNodesVec[0].size();
 
@@ -67,7 +68,6 @@ int main() {
 
     std::cout << "Output Graph: " << std::endl;
     for (int i = 0; i < outputGraph->numEdges; ++i) {
-        // Ensure you are checking against a valid sentinel value or ensure edges are initialized correctly
         if (outputGraph->srcNodes[i] != -1 && outputGraph->destNodes[i] != -1) {
             std::cout << "(" << outputGraph->srcNodes[i] << ", " << outputGraph->destNodes[i] << ")" << std::endl;
         }
