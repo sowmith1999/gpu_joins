@@ -57,7 +57,7 @@ int main() {
         }
     }
 
-    std::cout << "Time (nanoseconds): " << std::chrono::duration<double, std::nano>(combinedEnd - combinedStart).count() << " ns" << std::endl;
+    std::cout << "Time (nanoseconds): " << std::chrono::duration<double, std::milli>(combinedEnd - combinedStart).count() << " ms" << std::endl;
 
     // Cleanup
     cudaFree(graphsOnGPU->srcNodes);
