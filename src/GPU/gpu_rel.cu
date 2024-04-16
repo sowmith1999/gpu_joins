@@ -166,10 +166,12 @@ struct TupleLess {
       : data_arr1(data_arr1), data_arr2(data_arr2) {}
 
   __device__ bool operator()(const int& offset1, const int& offset2) {
+//    printf("1st ele:%d and 2nd ele: %d\n", data_arr1[offset1],
+//           data_arr2[offset2]);
     if (data_arr1[offset1] == data_arr2[offset2])
-      return data_arr1[offset1 + 1] < data_arr2[offset2 + 1];
+      return data_arr1[offset1 + 1] > data_arr2[offset2 + 1];
     else
-      return data_arr1[offset1] < data_arr2[offset2];
+      return data_arr1[offset1] > data_arr2[offset2];
   }
 };
 
@@ -238,10 +240,10 @@ __global__ void testKernel(Relation* rel) {
     printf("%d ", rel->index.sorted_arr[i]);
   }
   printf("\n");
-  printf("The map is:\n");
-  for (int i = 0; i < kHashTableCapacity; i++) {
-    printf("%d\t%d\n", rel->index.map[i].key, rel->index.map[i].value);
-  }
+  //  printf("The map is:\n");
+  //  for (int i = 0; i < kHashTableCapacity; i++) {
+  //    printf("%d\t%d\n", rel->index.map[i].key, rel->index.map[i].value);
+  //  }
 }
 
 __global__ void joinRelationCount(Relation* outer, Relation* inner,
@@ -282,8 +284,8 @@ __global__ void joinRelationData(Relation* outer, Relation* inner,
         int inner_value =
             inner->data_arr[inner->index.sorted_arr[inner_srtd_indx] + 1];
         if (inner_key == key) {
-          join_data_arr[result_idx] = outer_value;
-          join_data_arr[result_idx + 1] = inner_value;
+          join_data_arr[result_idx] = inner_value;
+          join_data_arr[result_idx + 1] = outer_value;
           //                    printf("Row inserted: Key:%d, Value:%d\n",
           //                    outer_value, inner_value);
           result_idx += 2;
@@ -352,8 +354,8 @@ Relation* make_Relation(std::vector<int>* host_data_vec, int* d_data_inp,
   int numBlocks = (num_rows + blockSize - 1) / blockSize;
   initSortedArr<<<numBlocks, blockSize>>>(d_rel);
   cudaDeviceSynchronize();
-  printf("the initialized sorted array, before sorting is:\n");
-  printDeviceArray(d_sorted_array, num_rows);
+//  printf("the initialized sorted array, before sorting is:\n");
+//  printDeviceArray(d_sorted_array, num_rows);
   // sort sorted array
   thrust::device_ptr<int> t_data_arr(d_data_arr);
   thrust::device_ptr<int> t_sorted_arr(d_sorted_array);
@@ -398,7 +400,8 @@ Relation* joinRelations_host(Relation* outer, Relation* inner, int outer_rows) {
   int totalJoinRowCount;
   cudaMemcpy(&totalJoinRowCount, d_count_arr + outer_rows - 1, sizeof(int),
              cudaMemcpyDeviceToHost);
-  printf("Total number of Rows is: %d\n", totalJoinRowCount);
+  checkCUDAError("CudaMecpy after exclusive scan");
+//  printf("Total number of Rows is: %d\n", totalJoinRowCount);
 
   int* d_join_data_arr;
   cudaMalloc((void**)&d_join_data_arr, sizeof(int) * 2 * totalJoinRowCount);
@@ -406,7 +409,7 @@ Relation* joinRelations_host(Relation* outer, Relation* inner, int outer_rows) {
                                              d_join_data_arr);
   cudaDeviceSynchronize();
 
-  printDeviceArray(d_join_data_arr, totalJoinRowCount * 2);
+//  printDeviceArray(d_join_data_arr, totalJoinRowCount * 2);
   std::vector<int> index_cols{0};
   char path_new_name[] = "path_new";
   Relation* path_new =
@@ -427,21 +430,26 @@ Relation* makeDelta(Relation* full_rel, Relation* new_rel) {
 
   thrust::device_ptr<int> t_new_rel_sorted(h_new_rel->index.sorted_arr);
   thrust::device_ptr<int> t_full_rel_sorted(h_full_rel->index.sorted_arr);
-  thrust::device_ptr<int> t_del_data_arr(d_del_srtd_arr);
+  thrust::device_ptr<int> t_del_srtd_arr(d_del_srtd_arr);
   TupleLess comp(h_new_rel->data_arr, h_full_rel->data_arr);
   auto del_end = thrust::set_difference(
       thrust::device, t_new_rel_sorted, t_new_rel_sorted + h_new_rel->num_rows,
       t_full_rel_sorted, t_full_rel_sorted + h_full_rel->num_rows,
-      t_del_data_arr, comp);
-  int delta_size = del_end - t_del_data_arr;
+      t_del_srtd_arr, comp);
+  int delta_size = del_end - t_del_srtd_arr;
+//  printf("the t_del_srtd_arr is:\n");
+//  printDeviceArray(d_del_srtd_arr, delta_size);
   int* d_del_data_arr;
   cudaMalloc((void**)&d_del_data_arr, sizeof(int) * 2 * delta_size);
   int blockSize = 256;
   int numBlocks = (delta_size + blockSize - 1) / blockSize;
+//  printf("the numBlocks: %d, blockSize: %d\n", numBlocks, blockSize);
   makeDeltaData<<<numBlocks, blockSize>>>(new_rel, d_del_srtd_arr, delta_size,
                                           d_del_data_arr);
   cudaDeviceSynchronize();
   checkCUDAError("Make Delta Data");
+//  printf("the delta data is:\n");
+//  printDeviceArray(d_del_data_arr, delta_size * 2);
   std::vector<int> index_cols{0};
   char del_name[] = "path_delta";
   Relation* path_delta =
@@ -451,17 +459,10 @@ Relation* makeDelta(Relation* full_rel, Relation* new_rel) {
 }
 
 Relation* updateFull(Relation* full_rel, Relation* del_rel) {
-  printf("Inside update full");
-  testKernel<<<1, 1>>>(full_rel);
-  cudaDeviceSynchronize();
-  testKernel<<<1, 1>>>(del_rel);
-  cudaDeviceSynchronize();
+//  printf("Inside update full");
   Relation* h_del_rel = (Relation*)malloc(sizeof(Relation));
   cudaMemcpy(h_del_rel, del_rel, sizeof(Relation), cudaMemcpyDeviceToHost);
   checkCUDAError("After the del_rel copy into h_full_rel\n");
-  printf("the num rows in del rel is: %d\n", h_del_rel->num_rows);
-  printf("the data array in del rel is:");
-  printDeviceArray(h_del_rel->data_arr, h_del_rel->num_rows * 2);
   Relation* h_full_rel = (Relation*)malloc(sizeof(Relation));
   cudaMemcpy(h_full_rel, full_rel, sizeof(Relation), cudaMemcpyDeviceToHost);
   checkCUDAError("After the full_rel copy into h_full_rel\n");
@@ -476,9 +477,9 @@ Relation* updateFull(Relation* full_rel, Relation* del_rel) {
   cudaMemcpy(d_full_rel_merge + 2 * h_full_rel->num_rows, h_del_rel->data_arr,
              sizeof(int) * 2 * h_del_rel->num_rows, cudaMemcpyDeviceToDevice);
 
-  int total_size = (h_full_rel->num_rows + h_del_rel->num_rows) * 2;
-  printf("the d_full_rel_merge array is:\n");
-  printDeviceArray(d_full_rel_merge, total_size);
+//  int total_size = (h_full_rel->num_rows + h_del_rel->num_rows) * 2;
+//  printf("the d_full_rel_merge array is:\n");
+//  printDeviceArray(d_full_rel_merge, total_size);
   // should be improved to not do all the work again
   std::vector<int> index_col{0};
   char path_full_name[] = "path_full";
@@ -486,6 +487,12 @@ Relation* updateFull(Relation* full_rel, Relation* del_rel) {
       nullptr, d_full_rel_merge, (h_full_rel->num_rows + h_del_rel->num_rows),
       2, &index_col, path_full_name);
   return path_full;
+}
+
+int getRowCount(Relation* d_rel) {
+  Relation* h_rel = (Relation*)malloc(sizeof(Relation));
+  cudaMemcpy(h_rel, d_rel, sizeof(Relation), cudaMemcpyDeviceToHost);
+  return h_rel->num_rows;
 }
 
 int main() {
@@ -507,16 +514,25 @@ int main() {
   testKernel<<<1, 1>>>(d_path);
   cudaDeviceSynchronize();
 
-  Relation* d_path_new = joinRelations_host(d_path, d_edge, num_rows);
-  testKernel<<<1, 1>>>(d_path_new);
-  cudaDeviceSynchronize();
+  Relation *d_path_new, *d_path_delta, *d_path_full;
+  d_path_delta = d_path;
+  d_path_full = d_path;
+  int count = -1;
+  do {
+    count++;
+    printf("---------------- %d Iteration --------------------\n",count);
+    d_path_new =
+        joinRelations_host(d_path_delta, d_edge, getRowCount(d_path_delta));
+    testKernel<<<1, 1>>>(d_path_new);
+    cudaDeviceSynchronize();
 
-  Relation* path_delta = makeDelta(d_path, d_path_new);
-  testKernel<<<1, 1>>>(path_delta);
-  cudaDeviceSynchronize();
+    d_path_delta = makeDelta(d_path_full, d_path_new);
+    testKernel<<<1, 1>>>(d_path_delta);
+    cudaDeviceSynchronize();
 
-  Relation* path_full = updateFull(d_path, path_delta);
-  testKernel<<<1, 1>>>(path_full);
-  cudaDeviceSynchronize();
+    d_path_full = updateFull(d_path_full, d_path_delta);
+    testKernel<<<1, 1>>>(d_path_full);
+    cudaDeviceSynchronize();
+  } while (getRowCount(d_path_delta) != 0);
   return 0;
 }
