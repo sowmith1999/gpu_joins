@@ -1,5 +1,2 @@
-## GPU Joins
-Repo contains my work with CUDA for Relational Joins on GPU and stuff from GPU Programming Class.
-
-
-
+# Joins On GPU
+This is the GPU Programming Class final project, We wrote the Merge and Join operations of Relation Algebra on CPU and GPU.
