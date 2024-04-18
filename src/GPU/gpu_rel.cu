@@ -7,7 +7,6 @@
 #include <random>
 #include <sstream>
 #include <thrust/device_ptr.h>
-// #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <vector>
@@ -15,10 +14,7 @@
 #define DEBUG 0
 
 /********************************/
-// const uint32_t kHashTableCapacity = 1024;
 const uint32_t kHashTableCapacity = 524288;
-//const uint32_t kHashTableCapacity = 1048576;
-//const uint32_t kHashTableCapacity = 1024;
 const uint32_t kEmpty = 0xffffffff;
 
 __device__ uint32_t hash(uint32_t key) {
@@ -348,7 +344,6 @@ __global__ void joinRelationData(Relation* outer, Relation* inner,
   }
 }
 
-// Not Used, we are using set difference now
 __global__ void makeDeltaData(Relation* new_rel, int* del_sorted_arr,
                               int del_num_rows, int* del_data_arr) {
   int idx = threadIdx.x + blockDim.x * blockIdx.x;
