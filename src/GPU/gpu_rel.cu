@@ -7,16 +7,18 @@
 #include <random>
 #include <sstream>
 #include <thrust/device_ptr.h>
-#include <thrust/set_operations.h>
+// #include <thrust/set_operations.h>
 #include <thrust/sort.h>
 #include <thrust/unique.h>
 #include <vector>
 
-#define DEBUG 1
+#define DEBUG 0
 
 /********************************/
 // const uint32_t kHashTableCapacity = 1024;
-const uint32_t kHashTableCapacity = 2048;
+const uint32_t kHashTableCapacity = 524288;
+//const uint32_t kHashTableCapacity = 1048576;
+//const uint32_t kHashTableCapacity = 1024;
 const uint32_t kEmpty = 0xffffffff;
 
 __device__ uint32_t hash(uint32_t key) {
@@ -164,6 +166,17 @@ typedef struct Relation {
   int* data_arr;
 } Relation;
 
+void freeRelation_d(Relation* d_rel) {
+  Relation* h_rel = (Relation*)malloc(sizeof(Relation));
+  cudaMemcpy(h_rel, d_rel, sizeof(Relation), cudaMemcpyDeviceToHost);
+  cudaFree(h_rel->data_arr);
+  cudaFree(h_rel->index.sorted_arr);
+  cudaFree(h_rel->index.map);
+  cudaFree(h_rel->index_col);
+  cudaFree(h_rel->name);
+  cudaFree(d_rel);
+  free(h_rel);
+}
 struct TupleLessCol {
   int col;
   const int* data_arr;
@@ -246,9 +259,8 @@ __global__ void initMap(Relation* rel) {
   int cur_idx = threadIdx.x + blockDim.x * blockIdx.x;
   int prev_idx = cur_idx - 1;
   if (cur_idx < rel->num_rows) {
-    if ((rel->data_arr[rel->index.sorted_arr[cur_idx]] !=
-         rel->data_arr[rel->index.sorted_arr[prev_idx]]) ||
-        cur_idx == 0) {
+    if (cur_idx == 0 || (rel->data_arr[rel->index.sorted_arr[cur_idx]] !=
+                         rel->data_arr[rel->index.sorted_arr[prev_idx]])) {
       uint32_t key = rel->data_arr[rel->index.sorted_arr[cur_idx]];
       uint32_t value = cur_idx;
       insertKey(rel->index.map, key, value);
@@ -301,7 +313,8 @@ __global__ void joinRelationCount(Relation* outer, Relation* inner,
       }
     }
   }
-  count_arr[idx] = count;
+  if (idx < outer->num_rows)
+    count_arr[idx] = count;
 }
 
 __global__ void joinRelationData(Relation* outer, Relation* inner,
@@ -320,10 +333,13 @@ __global__ void joinRelationData(Relation* outer, Relation* inner,
         int inner_value =
             inner->data_arr[inner->index.sorted_arr[inner_srtd_indx] + 1];
         if (inner_key == key) {
+          //          if (DEBUG && idx == 2) {
+          //            printf("The inner_key: %d, key:%d, result_idx:%d\n",
+          //            inner_key, key,
+          //                   result_idx);
+          //          }
           join_data_arr[result_idx] = inner_value;
           join_data_arr[result_idx + 1] = outer_value;
-          //                    printf("Row inserted: Key:%d, Value:%d\n",
-          //                    outer_value, inner_value);
           result_idx += 2;
         } else
           break;
@@ -438,6 +454,10 @@ Relation* joinRelations_host(Relation* outer, Relation* inner, int outer_rows) {
   if (totalJoinRowCount <= 0) {
     return nullptr;
   }
+  if (DEBUG) {
+    printf("Total Join Row count: %d\n", totalJoinRowCount);
+  }
+  //  printDeviceArray(d_count_arr, outer_rows);
   int* d_join_data_arr;
   cudaMalloc((void**)&d_join_data_arr, sizeof(int) * 2 * totalJoinRowCount);
   joinRelationData<<<numBlocks, blockSize>>>(outer, inner, d_count_arr,
@@ -461,30 +481,34 @@ Relation* makeDelta(Relation* full_rel, Relation* new_rel) {
   Relation* h_full_rel = (Relation*)malloc(sizeof(Relation));
   cudaMemcpy(h_full_rel, full_rel, sizeof(Relation), cudaMemcpyDeviceToHost);
 
-  int* d_del_srtd_arr;
-  cudaMalloc((void**)&d_del_srtd_arr, sizeof(int) * h_new_rel->num_rows);
-  checkCUDAError("cudaMalloc for del_srtc_arr in makeDelta");
-  thrust::device_ptr<int> t_new_rel_sorted(h_new_rel->index.sorted_arr);
-  thrust::device_ptr<int> t_full_rel_sorted(h_full_rel->index.sorted_arr);
-  thrust::device_ptr<int> t_del_srtd_arr(d_del_srtd_arr);
-  if (DEBUG) {
-    printf("Before set difference\n");
-    printf("the number of rows new_rel:%d\tfull_rel:%d\n", h_new_rel->num_rows,
-           h_full_rel->num_rows);
-  }
-
-  TupleLess comp(h_new_rel->data_arr, h_full_rel->data_arr);
-  auto del_end = thrust::set_difference(
-      thrust::device, t_new_rel_sorted, t_new_rel_sorted + h_new_rel->num_rows,
-      t_full_rel_sorted, t_full_rel_sorted + h_full_rel->num_rows,
-      t_del_srtd_arr, comp);
-  if (DEBUG)
-    printf("After set difference\n");
-  int delta_size = del_end - t_del_srtd_arr;
-  if(DEBUG){
-    printf("The delta size is:%d\n", delta_size);
-    printf("the del_end:%d annd t_del_srtd_arr:%d\n", del_end, t_del_srtd_arr);
-  }
+  //  int* d_del_srtd_arr;
+  //  cudaMalloc((void**)&d_del_srtd_arr, sizeof(int) * h_new_rel->num_rows);
+  //  checkCUDAError("cudaMalloc for del_srtc_arr in makeDelta");
+  //  thrust::device_ptr<int> t_new_rel_sorted(h_new_rel->index.sorted_arr);
+  //  thrust::device_ptr<int> t_full_rel_sorted(h_full_rel->index.sorted_arr);
+  //  thrust::device_ptr<int> t_del_srtd_arr(d_del_srtd_arr);
+  //  if (DEBUG) {
+  //    printf("Before set difference\n");
+  //    printf("the number of rows new_rel:%d\tfull_rel:%d\n",
+  //    h_new_rel->num_rows,
+  //           h_full_rel->num_rows);
+  //  }
+  //
+  //  TupleLess comp(h_new_rel->data_arr, h_full_rel->data_arr);
+  //  auto del_end = thrust::set_difference(
+  //      thrust::device, t_new_rel_sorted, t_new_rel_sorted +
+  //      h_new_rel->num_rows, t_full_rel_sorted, t_full_rel_sorted +
+  //      h_full_rel->num_rows, t_del_srtd_arr, comp);
+  //  if (DEBUG)
+  //    printf("After set difference\n");
+  //  int delta_size = del_end - t_del_srtd_arr;
+  //  if(DEBUG){
+  //    printf("The delta size is:%d\n", delta_size);
+  //    printf("the del_end:%d annd t_del_srtd_arr:%d\n", del_end,
+  //    t_del_srtd_arr);
+  //  }
+  int delta_size = h_new_rel->num_rows;
+  int* d_del_srtd_arr = h_new_rel->index.sorted_arr;
   int* d_del_data_arr;
   cudaMalloc((void**)&d_del_data_arr, sizeof(int) * 2 * delta_size);
   checkCUDAError("cudaMalloc for del_data_arrr in makeDelta");
@@ -511,7 +535,7 @@ Relation* updateFull(Relation* full_rel, Relation* del_rel) {
   //  printf("Inside update full");
   Relation* h_del_rel = (Relation*)malloc(sizeof(Relation));
   cudaMemcpy(h_del_rel, del_rel, sizeof(Relation), cudaMemcpyDeviceToHost);
-  checkCUDAError("After the del_rel copy into h_full_rel\n");
+  checkCUDAError("After the del_rel copy into h_del_rel\n");
   Relation* h_full_rel = (Relation*)malloc(sizeof(Relation));
   cudaMemcpy(h_full_rel, full_rel, sizeof(Relation), cudaMemcpyDeviceToHost);
   checkCUDAError("After the full_rel copy into h_full_rel\n");
@@ -549,10 +573,12 @@ int main(int argc, char* argv[]) {
     filename = std::string(argv[1]);
   }
   std::vector<int>* graph_edge = readInput(filename);
-  for (auto val : *graph_edge) {
-    printf("%d\t", val);
+  if (DEBUG) {
+    for (auto val : *graph_edge) {
+      printf("%d\t", val);
+    }
+    printf("\n");
   }
-  printf("\n");
   std::vector<int>* graph_path = readInput(filename);
   std::reverse(graph_path->begin(), graph_path->end());
 
@@ -564,11 +590,17 @@ int main(int argc, char* argv[]) {
   char edge_name[] = "edge";
   Relation* d_edge = make_Relation(graph_edge, nullptr, num_rows, num_cols,
                                    &index_cols, edge_name);
-
+  if (DEBUG) {
+    testKernel<<<1, 1>>>(d_edge);
+    cudaDeviceSynchronize();
+  }
   char rel_name[] = "path";
   Relation* d_path = make_Relation(graph_path, nullptr, num_rows, num_cols,
                                    &index_cols, rel_name);
-
+  if (DEBUG) {
+    testKernel<<<1, 1>>>(d_path);
+    cudaDeviceSynchronize();
+  }
   Relation *d_path_new, *d_path_delta, *d_path_full;
   d_path_delta = d_path;
   d_path_full = d_path;
@@ -576,8 +608,8 @@ int main(int argc, char* argv[]) {
   int iter_to_debug = -1;
   do {
     count++;
-    printf("---------------- %d Iteration --------------------\n", count);
-    if (count > iter_to_debug) {
+    if (DEBUG && count > iter_to_debug) {
+      printf("---------------- %d Iteration --------------------\n", count);
       printf("thou shall debug this\n");
     }
 
@@ -586,29 +618,38 @@ int main(int argc, char* argv[]) {
     if (d_path_new == nullptr) {
       break;
     }
-    if (count > iter_to_debug) {
+//    freeRelation_d(d_path_delta);
+    if (DEBUG && count > iter_to_debug) {
       printf("Joined the relations\n");
       testKernel<<<1, 1>>>(d_path_new);
       cudaDeviceSynchronize();
     }
     d_path_delta = makeDelta(d_path_full, d_path_new);
-    if (count > iter_to_debug) {
+    freeRelation_d(d_path_new);
+    if (DEBUG && count > iter_to_debug) {
       printf("After make Delta\n");
       testKernel<<<1, 1>>>(d_path_delta);
       cudaDeviceSynchronize();
     }
+    Relation* d_path_full_temp = d_path_full;
     d_path_full = updateFull(d_path_full, d_path_delta);
-    if (count > iter_to_debug) {
+    if (DEBUG && count > iter_to_debug) {
       printf("After updateFull\n");
       testKernel<<<1, 1>>>(d_path_full);
       cudaDeviceSynchronize();
     }
+    freeRelation_d(d_path_full_temp);
   } while (getRowCount(d_path_delta) != 0);
 
   printf("The number of Rows:%d\n", getRowCount(d_path_full));
-  int* final_data = copyDataArr(d_path_full);
-  for(int i = 0; i< getRowCount(d_path_full); i++){
-    printf("%d\t%d\n",final_data[i*2+1], final_data[i*2]);
+  if (DEBUG) {
+    int* final_data = copyDataArr(d_path_full);
+    for (int i = 0; i < getRowCount(d_path_full); i++) {
+      printf("%d\t%d\n", final_data[i * 2 + 1], final_data[i * 2]);
+    }
+    printf("\n");
   }
-  printf("\n");
+  freeRelation_d(d_path_delta);
+  freeRelation_d(d_edge);
+  freeRelation_d(d_path_full);
 }
