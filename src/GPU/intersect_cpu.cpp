@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "graph.cuh"
+// #include "graph.h.gch"
 
 struct Graph {
     std::vector<int> srcNodes;

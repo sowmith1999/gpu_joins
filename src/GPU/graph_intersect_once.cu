@@ -4,6 +4,7 @@
 // #include <vector> // should come from graph.cuh
 #include "kernels.cuh"
 #include "graph.cuh"
+// #include "graph.h.gch"
 
 int main() {
     // These are graphs where we have source nodes and dest nodes. So source(1) and dest(2) = edge(1, 2)
